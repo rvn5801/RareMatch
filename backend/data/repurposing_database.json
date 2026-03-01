@@ -1,0 +1,864 @@
+{
+  "_schema_version": "2.0",
+  "_last_updated": "2026-03-01",
+
+  "_how_to_add_data": {
+    "description": "TO ADD MORE DATA IN FUTURE — ZERO CODE CHANGES NEEDED. Edit this JSON file only.",
+
+    "add_new_drug": {
+      "step_1": "Copy any existing entry from the 'drugs' array",
+      "step_2": "Assign next available drug_id (e.g. if last is DR026, use DR027)",
+      "step_3": "Set 'target_pathway' to one of the exact keys in 'pathway_synonym_map'",
+      "step_4": "Set 'mechanism_action' to one of: Inhibitor | Activator | Enhancer | Replacement | Antagonist | Blocker | Degrader",
+      "step_5": "Add the new drug_id to 'pathway_drug_index' under the correct pathway key",
+      "step_6": "Save file — app picks it up automatically on next restart",
+      "warning": "Safety fields must come from FDA DailyMed only. Never guess black_box_warning or pediatric_note."
+    },
+
+    "add_new_pathway": {
+      "step_1": "Add a new key + synonyms array to 'pathway_synonym_map'",
+      "step_2": "Add the new pathway key + empty list to 'pathway_drug_index'",
+      "step_3": "Tag relevant drugs with the new pathway in their 'target_pathway' field",
+      "warning": "Pathway key must be identical across pathway_synonym_map, pathway_drug_index, and drug entries"
+    },
+
+    "add_new_synonym": {
+      "step_1": "Find the pathway in 'pathway_synonym_map'",
+      "step_2": "Add synonym string to its array",
+      "note": "No other changes needed. Matching engine reads this automatically."
+    },
+
+    "required_fields_per_drug": [
+      "drug_id", "drug_name", "generic_name", "drug_class",
+      "mechanism_action", "target_pathway", "pathway_action",
+      "confidence_score", "evidence_links", "evidence_summary",
+      "known_effective_diseases", "approval_status", "openfda_query",
+      "safety", "validation_plan"
+    ],
+
+    "required_safety_fields": [
+      "black_box_warning", "pediatric_flag", "pediatric_note",
+      "liver_toxicity", "major_side_effects", "contraindications", "missing_data"
+    ],
+
+    "pediatric_flag_values": {
+      "GREEN":  "Well-tolerated in children, approved or widely used pediatrically",
+      "YELLOW": "Use with caution — monitoring required or limited pediatric data",
+      "RED":    "Avoid in children — not approved, serious pediatric-specific risk, or absolute contraindication"
+    }
+  },
+
+  "pathway_synonym_map": {
+    "_purpose": "Maps canonical pathway names to all synonyms the LLM might return. Add synonyms here — no code change needed.",
+    "mTOR": [
+      "mTOR pathway", "mTORC1", "mTOR signaling", "mTOR overactivation",
+      "PI3K/AKT/mTOR", "mammalian target of rapamycin", "rapamycin pathway",
+      "mTOR complex", "TORC1"
+    ],
+    "PI3K/AKT": [
+      "PI3K pathway", "AKT signaling", "PI3K/AKT pathway", "AKT overactivation",
+      "PIK3CA", "phosphoinositide 3-kinase", "PI3-kinase", "AKT/mTOR",
+      "PI3K alpha", "PI3Kalpha", "p110 alpha"
+    ],
+    "JAK/STAT": [
+      "JAK-STAT", "JAK signaling", "STAT3", "cytokine signaling",
+      "JAK/STAT pathway", "janus kinase", "signal transducer and activator",
+      "JAK1", "JAK2", "STAT1", "STAT3", "STAT5"
+    ],
+    "RAS/MAPK": [
+      "RAS pathway", "MAPK", "ERK signaling", "RAS/ERK", "MEK/ERK",
+      "RAS-MAPK", "RAF/MEK/ERK", "extracellular signal-regulated kinase",
+      "mitogen-activated protein kinase", "RASopathy pathway",
+      "KRAS", "NRAS", "HRAS", "RAF", "MEK", "ERK",
+      "neurofibromin", "SOS1", "PTPN11", "SynGAP", "RasGAP"
+    ],
+    "NMDA/Glutamate": [
+      "glutamatergic", "NMDA receptor", "synaptic", "excitatory synapse",
+      "AMPA", "glutamate receptor", "excitatory neurotransmission",
+      "N-methyl-D-aspartate", "ionotropic glutamate", "GluN"
+    ],
+    "FAS/Apoptosis": [
+      "apoptosis pathway", "FAS ligand", "caspase", "lymphocyte apoptosis",
+      "death receptor pathway", "FASL", "programmed cell death",
+      "TNFRSF6", "CD95", "caspase-8", "caspase-3"
+    ],
+    "Wnt": [
+      "Wnt signaling", "beta-catenin", "canonical Wnt", "Wnt/beta-catenin",
+      "frizzled", "LRP5", "LRP6", "GSK3 beta"
+    ],
+    "GABA": [
+      "GABAergic", "GABA receptor", "inhibitory synapse",
+      "gamma-aminobutyric acid", "GABA-A", "inhibitory neurotransmission",
+      "benzodiazepine receptor", "GABA transaminase"
+    ],
+    "Complement": [
+      "complement system", "complement cascade", "C3", "C5",
+      "alternative complement pathway", "terminal complement",
+      "factor H", "factor I", "factor B", "factor D",
+      "membrane attack complex", "MAC", "CFH", "CFI", "CFB"
+    ],
+    "NF-kB": [
+      "NF-kB pathway", "inflammatory signaling", "TNF/NF-kB",
+      "nuclear factor kappa B", "inflammatory cascade",
+      "IKK", "IkB", "RelA", "p65"
+    ],
+    "Sodium Channel": [
+      "SCN1A", "Nav1.1", "voltage-gated sodium channel",
+      "sodium channel dysfunction", "neuronal sodium channel",
+      "Nav", "SCN2A", "SCN8A", "sodium channelopathy"
+    ],
+    "Lysosomal storage": [
+      "lysosomal storage disorder", "GAG accumulation",
+      "glycosaminoglycan", "enzyme deficiency", "lysosomal enzyme",
+      "alpha-L-iduronidase", "IDUA", "heparan sulfate", "dermatan sulfate",
+      "mucopolysaccharidosis", "MPS"
+    ],
+    "Ubiquitin-proteasome": [
+      "ubiquitin pathway", "proteasome", "UBE3A", "E3 ligase",
+      "protein degradation pathway", "ubiquitin ligase",
+      "Angelman", "UBE3A-ATS", "imprinting"
+    ]
+  },
+
+  "pathway_drug_index": {
+    "_purpose": "Quick lookup: pathway key → list of drug_ids that target it. Update when adding drugs — no code change needed.",
+    "mTOR":                 ["DR001", "DR002", "DR003", "DR006"],
+    "PI3K/AKT":             ["DR004", "DR005", "DR006"],
+    "RAS/MAPK":             ["DR007", "DR008", "DR009", "DR010", "DR023"],
+    "FAS/Apoptosis":        ["DR011", "DR012", "DR013"],
+    "GABA":                 ["DR014", "DR015", "DR016", "DR022"],
+    "Sodium Channel":       ["DR017", "DR018", "DR019"],
+    "Complement":           ["DR020", "DR021"],
+    "Lysosomal storage":    ["DR025"],
+    "Ubiquitin-proteasome": ["DR026"],
+    "NMDA/Glutamate":       ["DR024"],
+    "JAK/STAT":             [],
+    "NF-kB":                [],
+    "Wnt":                  []
+  },
+
+  "mechanism_action_rules": {
+    "_purpose": "Rules engine uses this to filter drugs by GoF/LoF. Add new rules here — no code change needed.",
+    "Gain of Function": {
+      "allowed":   ["Inhibitor", "Antagonist", "Blocker", "Degrader"],
+      "blocked":   ["Activator", "Agonist", "Enhancer", "Replacement"],
+      "rationale": "GoF = pathway too loud. Need to turn it DOWN."
+    },
+    "Loss of Function": {
+      "allowed":   ["Activator", "Agonist", "Enhancer", "Replacement", "Inhibitor"],
+      "blocked":   [],
+      "rationale": "LoF = pathway too quiet OR negative regulator lost. Need to compensate or inhibit what is overactive downstream.",
+      "note":      "LoF of a negative regulator (NF1, SYNGAP1) causes downstream overactivation — Inhibitors ARE valid for the overactive downstream pathway."
+    },
+    "Dominant Negative": {
+      "allowed":   ["Inhibitor", "Antagonist", "Blocker", "Degrader"],
+      "blocked":   ["Activator", "Agonist", "Enhancer"],
+      "rationale": "DN = broken protein sabotages healthy proteins. Suppress the bad pathway."
+    }
+  },
+
+  "drugs": [
+
+    {
+      "drug_id": "DR001",
+      "drug_name": "Sirolimus",
+      "generic_name": "Rapamycin",
+      "brand_names": ["Rapamune"],
+      "drug_class": "mTOR Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "mTOR",
+      "pathway_action": "Allosteric inhibition of mTORC1 — reduces phosphorylation of S6K1 and 4EBP1, suppressing lymphocyte proliferation and cell growth.",
+      "confidence_score": 92,
+      "evidence_links": ["PMID:24424344", "PMID:26825983", "PMID:22829022"],
+      "evidence_summary": "Multiple clinical studies show >90% reduction in lymphoproliferation in ALPS. FDA-approved for LAM. Strong preclinical data across mTOR-driven conditions.",
+      "known_effective_diseases": ["ALPS", "TSC-LAM", "Organ transplant rejection"],
+      "approval_status": "FDA-approved for transplant rejection and LAM. Off-label for ALPS, TSC tumors.",
+      "openfda_query": "sirolimus",
+      "safety": {
+        "black_box_warning": "Increased risk of serious infections. Risk of lymphoma and other malignancies. Increased mortality in non-renal transplant patients.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Not FDA-approved for transplant in patients under 13. Growth suppression with long-term use. Intense monitoring required.",
+        "liver_toxicity": "Moderate — monitor LFTs baseline and every 3 months",
+        "major_side_effects": ["Immunosuppression", "Hyperlipidemia", "Stomatitis", "Impaired wound healing", "Thrombocytopenia"],
+        "contraindications": ["Active serious infection", "Hypersensitivity to rapamycin"],
+        "missing_data": "Long-term impact on puberty and bone development unknown. No RCT data in children under 5."
+      },
+      "validation_plan": "Phase II open-label trial. S6K phosphorylation as target engagement biomarker. Lymphocyte apoptosis assay as pharmacodynamic endpoint."
+    },
+
+    {
+      "drug_id": "DR002",
+      "drug_name": "Everolimus",
+      "generic_name": "Everolimus",
+      "brand_names": ["Afinitor", "Votubia"],
+      "drug_class": "mTOR Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "mTOR",
+      "pathway_action": "Second-generation mTOR inhibitor. Same mTORC1 target as Sirolimus. Broader FDA approvals including pediatric TSC.",
+      "confidence_score": 90,
+      "evidence_links": ["PMID:23158522", "PMID:25099804", "PMID:28646780"],
+      "evidence_summary": "EXIST-1 and EXIST-2 trials: significant tumor reduction in TSC. FDA-approved for TSC-related SEGA and renal AML.",
+      "known_effective_diseases": ["TSC", "Renal Cell Carcinoma", "PNET", "Breast Cancer"],
+      "approval_status": "FDA-approved for TSC (SEGA, renal AML), RCC, PNET, breast cancer.",
+      "openfda_query": "everolimus",
+      "safety": {
+        "black_box_warning": "Non-infectious pneumonitis. Serious and fatal infections. Renal failure. Abnormal wound healing.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "FDA-approved for TSC in pediatric patients ≥1 year. Stomatitis most common side effect. Growth monitoring required.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Stomatitis", "Infections", "Hyperglycemia", "Fatigue", "Pneumonitis"],
+        "contraindications": ["Live vaccines during treatment", "Strong CYP3A4 inducers"],
+        "missing_data": "Optimal treatment duration not established. Rebound tumor growth on discontinuation reported."
+      },
+      "validation_plan": "Established — EXIST trial extensions ongoing. MRI volumetrics as primary endpoint."
+    },
+
+    {
+      "drug_id": "DR003",
+      "drug_name": "Metformin",
+      "generic_name": "Metformin",
+      "brand_names": ["Glucophage"],
+      "drug_class": "AMPK Activator / Indirect mTOR Inhibitor",
+      "mechanism_action": "Activator",
+      "target_pathway": "mTOR",
+      "pathway_action": "Activates AMPK which indirectly suppresses mTORC1 via energy sensing. Gentler, indirect mTOR dampening — weaker than direct inhibitors.",
+      "confidence_score": 38,
+      "evidence_links": ["PMID:23158522"],
+      "evidence_summary": "Preclinical data in TSC and overgrowth models. No significant RCT data in rare disease indications yet.",
+      "known_effective_diseases": ["Type 2 Diabetes"],
+      "approval_status": "FDA-approved for Type 2 Diabetes. Off-label investigational for rare mTOR-driven diseases.",
+      "openfda_query": "metformin",
+      "safety": {
+        "black_box_warning": "Lactic acidosis — rare but fatal. Risk increased with renal impairment, hepatic impairment, excessive alcohol.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "FDA-approved for type 2 diabetes in children ≥10 years. Lactic acidosis risk in young children with renal impairment.",
+        "liver_toxicity": "Low — contraindicated in hepatic impairment due to lactic acidosis risk",
+        "major_side_effects": ["GI upset", "Lactic acidosis (rare)", "B12 deficiency", "Metallic taste"],
+        "contraindications": ["Renal impairment eGFR <30", "Contrast dye procedures", "Hepatic impairment"],
+        "missing_data": "mTOR inhibition at standard doses may be insufficient for rare disease indications."
+      },
+      "validation_plan": "Pilot study: measure S6K phosphorylation in patients before considering disease-specific trial."
+    },
+
+    {
+      "drug_id": "DR004",
+      "drug_name": "Alpelisib",
+      "generic_name": "Alpelisib",
+      "brand_names": ["Vijoice", "Piqray"],
+      "drug_class": "PI3Kα Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "PI3K/AKT",
+      "pathway_action": "Highly selective inhibitor of PIK3CA (PI3Kα isoform) — directly targets the mutant kinase responsible for PI3K/AKT hyperactivation in PROS.",
+      "confidence_score": 94,
+      "evidence_links": ["PMID:34032985", "PMID:31672695"],
+      "evidence_summary": "EPIK-P1 trial: significant overgrowth lesion volume reduction. FDA-approved for PROS 2022.",
+      "known_effective_diseases": ["PIK3CA-ROS", "HR+/HER2- Breast Cancer (PIK3CA mutant)"],
+      "approval_status": "FDA-approved for PROS (2022) and PIK3CA-mutant breast cancer.",
+      "openfda_query": "alpelisib",
+      "safety": {
+        "black_box_warning": "Severe hypersensitivity reactions including anaphylaxis. Severe cutaneous adverse reactions (SCARs) including SJS and TEN.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved for adults and pediatric patients ≥2 years for PROS. Hyperglycemia is primary toxicity — mandatory diabetes monitoring protocol.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Hyperglycemia", "Diarrhea", "Rash", "Nausea", "Fatigue", "Stomatitis"],
+        "contraindications": ["History of SCARs", "Severe hypersensitivity"],
+        "missing_data": "Long-term effects on insulin sensitivity in growing children not fully characterized."
+      },
+      "validation_plan": "Established — EPIK-P1 extension. Monitor HbA1c quarterly. MRI volumetrics at 6 months."
+    },
+
+    {
+      "drug_id": "DR005",
+      "drug_name": "Idelalisib",
+      "generic_name": "Idelalisib",
+      "brand_names": ["Zydelig"],
+      "drug_class": "PI3Kδ Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "PI3K/AKT",
+      "pathway_action": "Targets PI3K delta isoform (immune-cell specific) — MECHANISTIC MISMATCH for somatic PIK3CA-alpha mutations in overgrowth syndromes.",
+      "confidence_score": 15,
+      "evidence_links": ["PMID:30012224"],
+      "evidence_summary": "Approved for CLL. PI3Kδ is immune-cell specific — wrong isoform for PROS. Included as safety filter test case.",
+      "known_effective_diseases": ["CLL", "Follicular Lymphoma"],
+      "approval_status": "FDA-approved for CLL and relapsed follicular lymphoma. Wrong isoform for PROS.",
+      "openfda_query": "idelalisib",
+      "safety": {
+        "black_box_warning": "Fatal hepatotoxicity. Fatal diarrhea or colitis. Fatal pneumonitis. Fatal and serious infections.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "Not approved in children. Four black box warnings. Severe hepatotoxicity particularly dangerous in pediatric patients.",
+        "liver_toxicity": "SEVERE — Black Box Warning for fatal hepatotoxicity",
+        "major_side_effects": ["Fatal hepatotoxicity", "Colitis", "Pneumonitis", "Serious infections"],
+        "contraindications": ["Hepatic impairment", "Active systemic infection"],
+        "missing_data": "Wrong isoform for PI3Kα diseases — high toxicity with no mechanistic rationale."
+      },
+      "validation_plan": "BLOCKED — mechanistic mismatch. Safety filter flags RED. Do not use for PIK3CA-alpha diseases."
+    },
+
+    {
+      "drug_id": "DR006",
+      "drug_name": "Everolimus (PI3K downstream)",
+      "generic_name": "Everolimus",
+      "brand_names": ["Afinitor"],
+      "drug_class": "mTOR Inhibitor (downstream of PI3K/AKT)",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "PI3K/AKT",
+      "pathway_action": "Targets mTOR downstream of PI3K/AKT — less targeted than direct PI3K inhibition but available alternative when Alpelisib not tolerated.",
+      "confidence_score": 58,
+      "evidence_links": ["PMID:31672695"],
+      "evidence_summary": "Case reports in PIK3CA-ROS show partial benefit. Less effective than Alpelisib but widely available.",
+      "known_effective_diseases": ["TSC", "PIK3CA-ROS (partial)"],
+      "approval_status": "Off-label for PIK3CA-ROS. FDA-approved for TSC.",
+      "openfda_query": "everolimus",
+      "safety": {
+        "black_box_warning": "Non-infectious pneumonitis. Serious infections. Renal failure.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved ≥1 year for TSC indications.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Stomatitis", "Infections", "Pneumonitis", "Hyperglycemia"],
+        "contraindications": ["Live vaccines", "Strong CYP3A4 inducers"],
+        "missing_data": "Head-to-head vs Alpelisib for PI3K/AKT diseases lacking."
+      },
+      "validation_plan": "Second-line to Alpelisib. MRI volumetrics at 6 months."
+    },
+
+    {
+      "drug_id": "DR007",
+      "drug_name": "Selumetinib",
+      "generic_name": "Selumetinib",
+      "brand_names": ["Koselugo"],
+      "drug_class": "MEK1/2 Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "RAS/MAPK",
+      "pathway_action": "Selective MEK1/2 inhibitor — blocks downstream RAS/MAPK signaling regardless of upstream cause (NF1 LoF, PTPN11 GoF, SYNGAP1 LoF of negative regulator).",
+      "confidence_score": 88,
+      "evidence_links": ["PMID:31306059", "PMID:32937073"],
+      "evidence_summary": "SPRINT trial: 66% of pediatric NF1 patients with inoperable neurofibromas had ≥20% tumor reduction. Best pediatric safety profile among MEK inhibitors.",
+      "known_effective_diseases": ["NF1", "Noonan Syndrome (emerging)"],
+      "approval_status": "FDA-approved for NF1 pediatric patients ≥2 years with symptomatic plexiform neurofibromas.",
+      "openfda_query": "selumetinib",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "FDA-approved pediatric indication ≥2 years. GI toxicity and rash are primary concerns. CK monitoring required.",
+        "liver_toxicity": "Low-moderate",
+        "major_side_effects": ["Nausea", "Vomiting", "Diarrhea", "Rash", "CK elevation", "Paronychia"],
+        "contraindications": ["Severe hepatic impairment"],
+        "missing_data": "Long-term tumor regrowth on discontinuation. Optimal treatment duration unknown."
+      },
+      "validation_plan": "Established — SPRINT extension. MRI volumetrics and patient-reported outcomes."
+    },
+
+    {
+      "drug_id": "DR008",
+      "drug_name": "Trametinib",
+      "generic_name": "Trametinib",
+      "brand_names": ["Mekinist"],
+      "drug_class": "MEK Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "RAS/MAPK",
+      "pathway_action": "Potent MEK1/2 inhibitor. Same RAS/MAPK target as Selumetinib — higher potency but significantly worse cardiac and pediatric safety profile.",
+      "confidence_score": 72,
+      "evidence_links": ["PMID:29420234", "PMID:34952011"],
+      "evidence_summary": "Emerging trial data in NF1-glioma and Noonan HCM. More potent than Selumetinib but not preferred pediatric option.",
+      "known_effective_diseases": ["Melanoma (BRAF V600E)", "NF1-glioma", "Noonan HCM (emerging)"],
+      "approval_status": "FDA-approved for BRAF V600E melanoma. Off-label for NF1, Noonan.",
+      "openfda_query": "trametinib",
+      "safety": {
+        "black_box_warning": "None specific, but serious: cardiomyopathy, retinal vein occlusion, interstitial lung disease, serious hemorrhage.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "Not FDA-approved for pediatric RAS/MAPK indications. Cardiac monitoring essential. More toxic than Selumetinib in children.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Cardiomyopathy", "Rash", "Diarrhea", "Pyrexia", "Hypertension", "Retinal occlusion"],
+        "contraindications": ["Baseline cardiac dysfunction", "Retinal vein occlusion"],
+        "missing_data": "Long-term cardiac safety in Noonan HCM. Growth impact with chronic MEK inhibition in children."
+      },
+      "validation_plan": "Reserve for NF1-glioma adults. Noonan HCM trial requires serial echocardiography as primary endpoint."
+    },
+
+    {
+      "drug_id": "DR009",
+      "drug_name": "Lovastatin",
+      "generic_name": "Lovastatin",
+      "brand_names": ["Mevacor"],
+      "drug_class": "Statin / RAS Prenylation Inhibitor",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "RAS/MAPK",
+      "pathway_action": "Reduces RAS membrane prenylation (farnesylation) — indirectly dampens RAS/MAPK overactivation. Weaker than direct MEK inhibition but better safety profile.",
+      "confidence_score": 55,
+      "evidence_links": ["PMID:27545715", "PMID:22278047"],
+      "evidence_summary": "SYNGAP1 mouse models: synaptic plasticity rescue. NF1 Phase II trial in children: safe but no significant cognitive improvement.",
+      "known_effective_diseases": ["Hypercholesterolemia"],
+      "approval_status": "FDA-approved for hypercholesterolemia. Off-label investigational for RASopathies.",
+      "openfda_query": "lovastatin",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "FDA-approved for familial hypercholesterolemia in children ≥10 years. Myopathy risk especially with CYP3A4 inhibitors.",
+        "liver_toxicity": "Low-moderate — monitor LFTs at baseline",
+        "major_side_effects": ["Myalgia", "Elevated CK", "Rhabdomyolysis (rare)", "Hepatotoxicity (rare)"],
+        "contraindications": ["Active liver disease", "Pregnancy", "Strong CYP3A4 inhibitors"],
+        "missing_data": "CNS penetrance at therapeutic doses unclear. No SYNGAP1-specific human trial data."
+      },
+      "validation_plan": "Phase II RCT in SYNGAP1 patients ≥10 years. Vineland adaptive scales as primary endpoint. ERK phosphorylation in PBMCs as biomarker."
+    },
+
+    {
+      "drug_id": "DR010",
+      "drug_name": "Sirolimus (RAS/MAPK downstream)",
+      "generic_name": "Sirolimus",
+      "brand_names": ["Rapamune"],
+      "drug_class": "mTOR Inhibitor (secondary RAS/MAPK use)",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "RAS/MAPK",
+      "pathway_action": "Addresses secondary mTOR overactivation downstream of RAS/MAPK hyperactivation in RASopathies — less targeted than MEK inhibition.",
+      "confidence_score": 52,
+      "evidence_links": ["PMID:31780363"],
+      "evidence_summary": "Preclinical evidence in RASopathy models. Downstream of the primary defect — less targeted than MEK inhibitors.",
+      "known_effective_diseases": ["TSC", "ALPS"],
+      "approval_status": "Off-label for RASopathy neuro indications.",
+      "openfda_query": "sirolimus",
+      "safety": {
+        "black_box_warning": "Increased risk of serious infections. Malignancy risk.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Neurodevelopmental safety of chronic mTOR inhibition in young children is unknown and concerning.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Immunosuppression", "Metabolic effects", "Growth concerns"],
+        "contraindications": ["Active infection"],
+        "missing_data": "CNS safety of mTOR inhibition in neurodevelopment unknown. Optimal duration unclear."
+      },
+      "validation_plan": "iPSC-derived neuron model first. Measure spine density and LTP rescue before any human trial."
+    },
+
+    {
+      "drug_id": "DR011",
+      "drug_name": "Mycophenolate Mofetil",
+      "generic_name": "MMF",
+      "brand_names": ["CellCept"],
+      "drug_class": "IMDH Inhibitor / Immunosuppressant",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "FAS/Apoptosis",
+      "pathway_action": "Inhibits IMDH — blocks purine synthesis in lymphocytes, indirectly suppressing autoreactive lymphocyte proliferation in ALPS.",
+      "confidence_score": 65,
+      "evidence_links": ["PMID:19131543", "PMID:22226066"],
+      "evidence_summary": "Second-line agent in ALPS when Sirolimus not tolerated. Reduces lymphoproliferation indirectly.",
+      "known_effective_diseases": ["ALPS", "Organ transplant rejection", "Lupus nephritis"],
+      "approval_status": "FDA-approved for organ transplant. Off-label for ALPS.",
+      "openfda_query": "mycophenolate mofetil",
+      "safety": {
+        "black_box_warning": "Embryofetal toxicity. Increased risk of lymphoma and serious infections.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Used in pediatric transplant patients with dose adjustment by body surface area.",
+        "liver_toxicity": "Low-moderate",
+        "major_side_effects": ["GI disturbances", "Leukopenia", "Opportunistic infections", "Anemia"],
+        "contraindications": ["Pregnancy", "Hypersensitivity to MMF or MPA"],
+        "missing_data": "Optimal dosing in ALPS children under 6 not established."
+      },
+      "validation_plan": "Registry analysis of ALPS patients on MMF. Compare lymphocyte biomarkers pre/post treatment."
+    },
+
+    {
+      "drug_id": "DR012",
+      "drug_name": "Rituximab",
+      "generic_name": "Rituximab",
+      "brand_names": ["Rituxan"],
+      "drug_class": "Anti-CD20 Monoclonal Antibody",
+      "mechanism_action": "Blocker",
+      "target_pathway": "FAS/Apoptosis",
+      "pathway_action": "B-cell depletion via CD20 targeting — reduces autoantibody production in ALPS autoimmune manifestations. Addresses symptoms not root FAS mechanism.",
+      "confidence_score": 55,
+      "evidence_links": ["PMID:18223161"],
+      "evidence_summary": "Effective for autoimmune cytopenias in ALPS. Does not address lymphoproliferation or root FAS defect.",
+      "known_effective_diseases": ["ALPS (cytopenia)", "NHL", "RA", "CLL"],
+      "approval_status": "FDA-approved for NHL, CLL, RA. Off-label for ALPS autoimmune cytopenias.",
+      "openfda_query": "rituximab",
+      "safety": {
+        "black_box_warning": "Fatal infusion reactions. Severe mucocutaneous reactions. Hepatitis B reactivation. Progressive Multifocal Leukoencephalopathy (PML).",
+        "pediatric_flag": "RED",
+        "pediatric_note": "Not FDA-approved for pediatric use. PML risk in immunocompromised children is particularly concerning.",
+        "liver_toxicity": "Risk of hepatitis B reactivation — screen HBsAg and anti-HBc before use",
+        "major_side_effects": ["Fatal infusion reactions", "PML", "Prolonged hypogammaglobulinemia", "Infections"],
+        "contraindications": ["Active hepatitis B", "Severe active infections"],
+        "missing_data": "Long-term immune reconstitution data in pediatric ALPS lacking."
+      },
+      "validation_plan": "Limit to ALPS refractory autoimmune cytopenia only. Monitor IgG levels as safety biomarker."
+    },
+
+    {
+      "drug_id": "DR013",
+      "drug_name": "Hydroxychloroquine",
+      "generic_name": "Hydroxychloroquine",
+      "brand_names": ["Plaquenil"],
+      "drug_class": "Antimalarial / Immunomodulator",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "FAS/Apoptosis",
+      "pathway_action": "Modulates lysosomal function and innate immune signaling — mild immunomodulation for ALPS adjunct therapy.",
+      "confidence_score": 42,
+      "evidence_links": ["PMID:28031557"],
+      "evidence_summary": "Limited case reports suggest benefit in mild ALPS. Used adjunctively, not as monotherapy.",
+      "known_effective_diseases": ["ALPS (mild)", "Lupus", "Malaria", "RA"],
+      "approval_status": "FDA-approved for lupus, malaria, RA. Off-label for ALPS.",
+      "openfda_query": "hydroxychloroquine",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "GREEN",
+        "pediatric_note": "Well-tolerated in children. Used in pediatric lupus. Annual ophthalmology exam required for retinopathy monitoring.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Retinopathy (long-term)", "QT prolongation", "GI upset"],
+        "contraindications": ["Pre-existing retinal disease", "G6PD deficiency (relative)"],
+        "missing_data": "No prospective ALPS pediatric trial data."
+      },
+      "validation_plan": "N-of-1 trial in mild ALPS. Endpoint: reduction in double-negative T-cells (DNT biomarker)."
+    },
+
+    {
+      "drug_id": "DR014",
+      "drug_name": "Cannabidiol",
+      "generic_name": "Cannabidiol",
+      "brand_names": ["Epidiolex"],
+      "drug_class": "Cannabinoid / Antiepileptic",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "GABA",
+      "pathway_action": "Multi-target: enhances GABAergic tone, modulates TRPV1, antagonizes GPR55, and modulates voltage-gated sodium channels. FDA-approved for Dravet and TSC seizures.",
+      "confidence_score": 92,
+      "evidence_links": ["PMID:29415812", "PMID:30704953", "PMID:28646780"],
+      "evidence_summary": "GWPCARE1: 39% reduction in convulsive seizures in Dravet. CARE-E: ~49% reduction in TSC seizures. Both FDA-approved.",
+      "known_effective_diseases": ["Dravet Syndrome", "TSC", "Lennox-Gastaut Syndrome"],
+      "approval_status": "FDA-approved for Dravet Syndrome, LGS, and TSC seizures ≥2 years.",
+      "openfda_query": "cannabidiol",
+      "safety": {
+        "black_box_warning": "Hepatotoxicity — especially with concurrent valproate use.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved ≥2 years. LFT monitoring mandatory especially with other AEDs.",
+        "liver_toxicity": "HIGH — primary safety concern with AED polypharmacy",
+        "major_side_effects": ["Hepatotoxicity", "Somnolence", "Decreased appetite", "Diarrhea"],
+        "contraindications": ["Severe hepatic impairment"],
+        "missing_data": "Long-term hepatic safety in polypharmacy children unclear."
+      },
+      "validation_plan": "Established — GWPCARE and CARE-E extension studies ongoing."
+    },
+
+    {
+      "drug_id": "DR015",
+      "drug_name": "Clobazam",
+      "generic_name": "Clobazam",
+      "brand_names": ["Onfi"],
+      "drug_class": "Benzodiazepine / GABA-A Positive Modulator",
+      "mechanism_action": "Enhancer",
+      "target_pathway": "GABA",
+      "pathway_action": "Positive allosteric modulator of GABA-A receptors — enhances inhibitory neurotransmission to compensate for excitatory/inhibitory imbalance.",
+      "confidence_score": 68,
+      "evidence_links": ["PMID:33421534"],
+      "evidence_summary": "FDA-approved adjunctive therapy for LGS. Widely used off-label in Dravet syndrome.",
+      "known_effective_diseases": ["Lennox-Gastaut Syndrome", "Dravet Syndrome"],
+      "approval_status": "FDA-approved for LGS ≥2 years. Off-label for Dravet.",
+      "openfda_query": "clobazam",
+      "safety": {
+        "black_box_warning": "Concomitant use with opioids may cause profound sedation, respiratory depression, coma, and death.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved ≥2 years for LGS. Sedation and behavioral effects notable. Physical dependence risk.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Sedation", "Drooling", "Behavioral changes", "Tolerance", "Constipation"],
+        "contraindications": ["Severe respiratory impairment", "Concomitant opioids"],
+        "missing_data": "Optimal duration before tolerance develops unclear."
+      },
+      "validation_plan": "Adjunctive use only. Neuropsychological testing at 6 months to monitor behavioral effects."
+    },
+
+    {
+      "drug_id": "DR016",
+      "drug_name": "Fenfluramine",
+      "generic_name": "Fenfluramine",
+      "brand_names": ["Fintepla"],
+      "drug_class": "Serotonin Releaser / Antiepileptic",
+      "mechanism_action": "Enhancer",
+      "target_pathway": "GABA",
+      "pathway_action": "Releases serotonin and activates sigma-1 receptors — modulates neuronal excitability via serotonergic pathway. FDA-approved specifically for Dravet.",
+      "confidence_score": 90,
+      "evidence_links": ["PMID:31782296"],
+      "evidence_summary": "Pivotal trial: 62% of patients had >50% seizure reduction. FDA-approved 2020 for Dravet.",
+      "known_effective_diseases": ["Dravet Syndrome", "Lennox-Gastaut Syndrome"],
+      "approval_status": "FDA-approved for Dravet Syndrome and LGS ≥2 years under REMS.",
+      "openfda_query": "fenfluramine",
+      "safety": {
+        "black_box_warning": "REMS REQUIRED. Cardiac valvulopathy and pulmonary arterial hypertension risk.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved ≥2 years under mandatory REMS. Echocardiogram every 6 months required.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Cardiac valvulopathy", "PAH", "Decreased appetite", "Somnolence"],
+        "contraindications": ["History of cardiac valvulopathy", "MAOIs within 14 days"],
+        "missing_data": "Very long-term cardiac outcomes in children receiving multi-year treatment."
+      },
+      "validation_plan": "Established — mandatory REMS echocardiography program. Annual cardiac imaging."
+    },
+
+    {
+      "drug_id": "DR017",
+      "drug_name": "Sodium Valproate",
+      "generic_name": "Valproic Acid",
+      "brand_names": ["Depakote"],
+      "drug_class": "Broad-spectrum AED",
+      "mechanism_action": "Enhancer",
+      "target_pathway": "Sodium Channel",
+      "pathway_action": "Multiple mechanisms including GABA enhancement and sodium channel modulation. First-line for Dravet but significant toxicity burden.",
+      "confidence_score": 70,
+      "evidence_links": ["PMID:27816984"],
+      "evidence_summary": "First-line AED for Dravet. Partial seizure control in majority of patients. High toxicity, especially in young children.",
+      "known_effective_diseases": ["Dravet Syndrome", "Epilepsy", "Bipolar disorder"],
+      "approval_status": "FDA-approved for seizures, bipolar, migraine.",
+      "openfda_query": "valproic acid",
+      "safety": {
+        "black_box_warning": "Hepatotoxicity especially in children <2 years — can be fatal. Teratogenicity — major congenital malformations. Pancreatitis — can be fatal.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "SEVERE hepatotoxicity risk in children under 2 years. Fatal cases reported. Risk highest with polypharmacy.",
+        "liver_toxicity": "SEVERE in infants — Black Box Warning",
+        "major_side_effects": ["Fatal hepatotoxicity", "Pancreatitis", "Teratogenicity", "Weight gain", "Tremor"],
+        "contraindications": ["Children <2 years (high risk)", "Mitochondrial disorders", "Urea cycle disorders"],
+        "missing_data": "CBD co-administration raises hepatotoxicity risk — mandatory LFT monitoring."
+      },
+      "validation_plan": "If used, mandatory LFT monitoring every 3 months. Avoid entirely in children under 2 years."
+    },
+
+    {
+      "drug_id": "DR018",
+      "drug_name": "Carbamazepine",
+      "generic_name": "Carbamazepine",
+      "brand_names": ["Tegretol"],
+      "drug_class": "Sodium Channel Blocker",
+      "mechanism_action": "Blocker",
+      "target_pathway": "Sodium Channel",
+      "pathway_action": "ABSOLUTE CONTRAINDICATION IN SCN1A LoF — blocks sodium channels, worsening Nav1.1 deficiency and precipitating seizure storms in Dravet.",
+      "confidence_score": 0,
+      "evidence_links": ["PMID:27816984"],
+      "evidence_summary": "Known to WORSEN Dravet syndrome. Included as safety filter test case — system must catch and block this automatically.",
+      "known_effective_diseases": ["Focal epilepsy", "Trigeminal neuralgia"],
+      "approval_status": "FDA-approved for seizures. CONTRAINDICATED in Dravet/SCN1A LoF.",
+      "openfda_query": "carbamazepine",
+      "safety": {
+        "black_box_warning": "Aplastic anemia and agranulocytosis. Serious dermatologic reactions including SJS and TEN.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "Can precipitate seizure storms and status epilepticus in Dravet — potentially fatal. NEVER use in SCN1A LoF patients.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Seizure worsening in Dravet", "Aplastic anemia", "SJS/TEN", "Hyponatremia"],
+        "contraindications": ["SCN1A mutation — absolute contraindication", "Dravet syndrome", "Bone marrow depression"],
+        "missing_data": "N/A — do not use in Dravet."
+      },
+      "validation_plan": "BLOCKED. Safety rule: sodium channel blocker + SCN1A LoF = absolute contraindication."
+    },
+
+    {
+      "drug_id": "DR019",
+      "drug_name": "Lamotrigine",
+      "generic_name": "Lamotrigine",
+      "brand_names": ["Lamictal"],
+      "drug_class": "Sodium Channel Blocker / AED",
+      "mechanism_action": "Blocker",
+      "target_pathway": "Sodium Channel",
+      "pathway_action": "Sodium channel blocker — same mechanistic concern as Carbamazepine in SCN1A LoF. Inconsistent results in Dravet, generally avoided.",
+      "confidence_score": 20,
+      "evidence_links": ["PMID:27816984"],
+      "evidence_summary": "Controversial in Dravet — some seizure worsening reports, others partial benefit. Generally avoided.",
+      "known_effective_diseases": ["Focal epilepsy", "Bipolar disorder"],
+      "approval_status": "FDA-approved for epilepsy and bipolar. Caution/avoid in Dravet.",
+      "openfda_query": "lamotrigine",
+      "safety": {
+        "black_box_warning": "Serious skin reactions including SJS and TEN — risk highest in children and with rapid titration.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "SJS risk highest in children. Must titrate extremely slowly. Avoid in Dravet.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["SJS/TEN", "Dizziness", "Diplopia", "Seizure worsening in Dravet"],
+        "contraindications": ["Rapid titration", "Dravet (relative contraindication)"],
+        "missing_data": "Inconsistent data in Dravet — predictors of worsening unknown."
+      },
+      "validation_plan": "Avoid in Dravet unless all other options exhausted. Use only with extreme caution and slow titration."
+    },
+
+    {
+      "drug_id": "DR020",
+      "drug_name": "Eculizumab",
+      "generic_name": "Eculizumab",
+      "brand_names": ["Soliris"],
+      "drug_class": "Anti-C5 Monoclonal Antibody",
+      "mechanism_action": "Blocker",
+      "target_pathway": "Complement",
+      "pathway_action": "Blocks C5 cleavage — prevents terminal complement activation (MAC formation) regardless of which upstream complement gene is mutated.",
+      "confidence_score": 96,
+      "evidence_links": ["PMID:23065219", "PMID:27016155"],
+      "evidence_summary": "Transformed aHUS from near-universal ESRD to manageable disease. >80% achieve TMA remission.",
+      "known_effective_diseases": ["aHUS", "PNH"],
+      "approval_status": "FDA-approved for aHUS and PNH.",
+      "openfda_query": "eculizumab",
+      "safety": {
+        "black_box_warning": "LIFE-THREATENING AND FATAL MENINGOCOCCAL INFECTIONS. Vaccination against N. meningitidis REQUIRED at least 2 weeks before treatment.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved for pediatric use including infants. Meningococcal vaccination and prophylactic antibiotics mandatory.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Meningococcal infection (life-threatening)", "Headache", "Infusion reactions"],
+        "contraindications": ["Unresolved N. meningitidis infection", "Unvaccinated patients without antibiotics"],
+        "missing_data": "Optimal duration unclear — lifelong vs discontinuation protocols debated."
+      },
+      "validation_plan": "Established. Monitor CH50 and sC5b-9. Meningococcal vaccine mandatory before first dose."
+    },
+
+    {
+      "drug_id": "DR021",
+      "drug_name": "Ravulizumab",
+      "generic_name": "Ravulizumab",
+      "brand_names": ["Ultomiris"],
+      "drug_class": "Anti-C5 Monoclonal Antibody (long-acting)",
+      "mechanism_action": "Blocker",
+      "target_pathway": "Complement",
+      "pathway_action": "Same C5 blocking mechanism as Eculizumab. Engineered half-life extension enables 8-week dosing vs every 2 weeks for Eculizumab.",
+      "confidence_score": 94,
+      "evidence_links": ["PMID:31658955"],
+      "evidence_summary": "Non-inferior to Eculizumab. Now preferred over Eculizumab due to 8-week dosing convenience.",
+      "known_effective_diseases": ["aHUS", "PNH"],
+      "approval_status": "FDA-approved for aHUS and PNH.",
+      "openfda_query": "ravulizumab",
+      "safety": {
+        "black_box_warning": "MENINGOCOCCAL INFECTIONS — same as Eculizumab. Vaccination required.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved for pediatric use. Same vaccination requirements as Eculizumab.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Meningococcal infection", "Upper respiratory infection", "Headache"],
+        "contraindications": ["Unvaccinated against N. meningitidis"],
+        "missing_data": "Long-term comparative data vs Eculizumab in pediatric aHUS limited."
+      },
+      "validation_plan": "Preferred over Eculizumab where available. Monitor renal function and complement markers."
+    },
+
+    {
+      "drug_id": "DR022",
+      "drug_name": "Vigabatrin",
+      "generic_name": "Vigabatrin",
+      "brand_names": ["Sabril"],
+      "drug_class": "GABA Transaminase Inhibitor",
+      "mechanism_action": "Enhancer",
+      "target_pathway": "GABA",
+      "pathway_action": "Irreversibly inhibits GABA transaminase — increases synaptic GABA levels by blocking its breakdown. First-line for TSC-associated infantile spasms.",
+      "confidence_score": 82,
+      "evidence_links": ["PMID:30315037"],
+      "evidence_summary": "First-line for infantile spasms in TSC. Does not affect tumor burden.",
+      "known_effective_diseases": ["TSC infantile spasms", "Refractory complex partial seizures"],
+      "approval_status": "FDA-approved for infantile spasms (1 month to 2 years) and refractory CPS.",
+      "openfda_query": "vigabatrin",
+      "safety": {
+        "black_box_warning": "PERMANENT BILATERAL VISION LOSS — occurs in up to 1/3 of patients.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "FDA-approved for infantile spasms in infants 1 month to 2 years. Permanent vision loss is devastating in developing children.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Permanent vision loss (up to 1/3 of patients)", "Sedation", "MRI signal abnormalities"],
+        "contraindications": ["Pre-existing visual field defect"],
+        "missing_data": "Optimal duration before vision loss risk becomes prohibitive unclear."
+      },
+      "validation_plan": "Visual field testing every 3 months mandatory. Discontinue immediately if vision changes."
+    },
+
+    {
+      "drug_id": "DR023",
+      "drug_name": "Growth Hormone",
+      "generic_name": "Somatropin",
+      "brand_names": ["Norditropin", "Genotropin"],
+      "drug_class": "Growth Factor (compensatory)",
+      "mechanism_action": "Enhancer",
+      "target_pathway": "RAS/MAPK",
+      "pathway_action": "FDA-approved for Noonan short stature. Compensates for growth impairment — does not address RAS/MAPK overactivation directly.",
+      "confidence_score": 75,
+      "evidence_links": ["PMID:28686820"],
+      "evidence_summary": "FDA-approved for Noonan short stature. Does not address cardiac or tumor manifestations.",
+      "known_effective_diseases": ["Noonan Syndrome (short stature)", "GH deficiency", "Turner syndrome"],
+      "approval_status": "FDA-approved for Noonan-associated short stature.",
+      "openfda_query": "somatropin",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Generally safe in children. Theoretical tumor promotion concern in RASopathy context.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Injection site reactions", "Headache", "Edema", "Slipped capital femoral epiphysis"],
+        "contraindications": ["Active malignancy", "Acute critical illness"],
+        "missing_data": "Theoretical tumor promotion risk with GH in RASopathy context not well quantified."
+      },
+      "validation_plan": "Established. Post-marketing surveillance for tumor incidence in Noonan GH recipients."
+    },
+
+    {
+      "drug_id": "DR024",
+      "drug_name": "Memantine",
+      "generic_name": "Memantine",
+      "brand_names": ["Namenda"],
+      "drug_class": "NMDA Receptor Antagonist",
+      "mechanism_action": "Antagonist",
+      "target_pathway": "NMDA/Glutamate",
+      "pathway_action": "Blocks excessive NMDA receptor activation — dampens glutamatergic overactivation from SYNGAP1 LoF-driven excitatory/inhibitory imbalance.",
+      "confidence_score": 60,
+      "evidence_links": ["PMID:29276006", "PMID:33741948"],
+      "evidence_summary": "SYNGAP1 mouse models show improved social behavior with NMDA antagonism. Used off-label in pediatric autism.",
+      "known_effective_diseases": ["Alzheimer's Disease (moderate-severe)"],
+      "approval_status": "FDA-approved for Alzheimer's in adults. Off-label in pediatric neurodevelopmental disorders.",
+      "openfda_query": "memantine",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Not FDA-approved in children. Small autism trials show generally acceptable tolerability.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Dizziness", "Confusion", "Headache", "Constipation", "Hypertension"],
+        "contraindications": ["Severe renal impairment"],
+        "missing_data": "No SYNGAP1-specific human data. Optimal dose for synaptic target engagement in children unknown."
+      },
+      "validation_plan": "N-of-1 crossover trial. EEG gamma oscillation power as proxy biomarker for synaptic excitation."
+    },
+
+    {
+      "drug_id": "DR025",
+      "drug_name": "Laronidase",
+      "generic_name": "Laronidase",
+      "brand_names": ["Aldurazyme"],
+      "drug_class": "Enzyme Replacement Therapy",
+      "mechanism_action": "Replacement",
+      "target_pathway": "Lysosomal storage",
+      "pathway_action": "Recombinant human alpha-L-iduronidase — directly replaces the deficient enzyme in MPS-I (Hurler syndrome), addressing root LoF mechanism.",
+      "confidence_score": 95,
+      "evidence_links": ["PMID:24387815", "PMID:27860008"],
+      "evidence_summary": "FDA-approved ERT for MPS-I. Reduces urinary GAGs and improves respiratory function. Does not cross BBB.",
+      "known_effective_diseases": ["MPS-I (Hurler Syndrome)"],
+      "approval_status": "FDA-approved for MPS-I.",
+      "openfda_query": "laronidase",
+      "safety": {
+        "black_box_warning": "Anaphylaxis and severe allergic reactions during infusion — emergency equipment required.",
+        "pediatric_flag": "YELLOW",
+        "pediatric_note": "Approved for pediatric use including infants. Infusion reactions more common with first doses. Pre-medicate.",
+        "liver_toxicity": "Low",
+        "major_side_effects": ["Infusion reactions", "Anaphylaxis", "Antibody development", "Pyrexia"],
+        "contraindications": ["Severe hypersensitivity (desensitization protocol required)"],
+        "missing_data": "Does not penetrate blood-brain barrier — CNS manifestations not addressed by IV ERT."
+      },
+      "validation_plan": "Established. Pre-medicate with antihistamines. Monitor anti-laronidase antibody titers."
+    },
+
+    {
+      "drug_id": "DR026",
+      "drug_name": "Minocycline",
+      "generic_name": "Minocycline",
+      "brand_names": ["Minocin"],
+      "drug_class": "Tetracycline / Neuroprotective",
+      "mechanism_action": "Inhibitor",
+      "target_pathway": "Ubiquitin-proteasome",
+      "pathway_action": "Inhibits MMP-9 and microglial activation — may partially compensate for UBE3A LoF via synaptic remodeling in Angelman syndrome.",
+      "confidence_score": 40,
+      "evidence_links": ["PMID:24361520"],
+      "evidence_summary": "Angelman mouse model showed improved synaptic function. Small human trial showed modest improvement.",
+      "known_effective_diseases": ["Bacterial infections"],
+      "approval_status": "FDA-approved for bacterial infections. Off-label investigational for Angelman.",
+      "openfda_query": "minocycline",
+      "safety": {
+        "black_box_warning": "None.",
+        "pediatric_flag": "RED",
+        "pediatric_note": "AVOID IN CHILDREN UNDER 8 YEARS — causes permanent dental staining and tooth enamel hypoplasia. Most Angelman patients diagnosed in early childhood.",
+        "liver_toxicity": "Moderate",
+        "major_side_effects": ["Permanent tooth discoloration (children <8)", "Photosensitivity", "Vestibular toxicity"],
+        "contraindications": ["Children under 8 years", "Pregnancy"],
+        "missing_data": "Mechanism of benefit in Angelman unclear. Dental staining renders inappropriate for most Angelman patients."
+      },
+      "validation_plan": "Only consider in patients over 8 years. Low priority agent for Angelman."
+    }
+  ]
+}

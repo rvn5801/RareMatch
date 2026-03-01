@@ -1,0 +1,13 @@
+{
+  "include": [
+    "backend",
+    "tests",
+    "frontend"
+  ],
+  "pythonVersion": "3.10",
+  "pythonPlatform": "All",
+  "venvPath": ".",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportMissingModuleSource": "none"
+}
