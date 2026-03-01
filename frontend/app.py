@@ -1,6 +1,21 @@
 import os
+import io
+import time
+import datetime
 import requests
 import streamlit as st
+import html as _html
+
+# PDF generation
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    HRFlowable, KeepTogether
+)
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 
 # ── Config ─────────────────────────────────────────────────────
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
@@ -466,11 +481,337 @@ def confidence_color(score: int) -> str:
     return "#ff5252"
 
 
+# ── PDF Report Generator ───────────────────────────────────────
+def generate_pdf_report(results: dict, query: dict) -> bytes:
+    """
+    Generate a professional clinical-style PDF report from search results.
+    Returns raw bytes suitable for st.download_button.
+    """
+    buf = io.BytesIO()
+
+    # ── Colours ───────────────────────────────────────────────
+    NAVY      = colors.HexColor("#0D1520")
+    BLUE      = colors.HexColor("#1565C0")
+    LBLUE     = colors.HexColor("#4FC3F7")
+    GREEN_C   = colors.HexColor("#00C853")
+    AMBER_C   = colors.HexColor("#FFB300")
+    RED_C     = colors.HexColor("#F44336")
+    MUTED     = colors.HexColor("#546E7A")
+    LIGHT_BG  = colors.HexColor("#F5F8FF")
+    MID_GREY  = colors.HexColor("#90A4AE")
+    DARK_TEXT = colors.HexColor("#1A2535")
+    WHITE     = colors.white
+    BLACK     = colors.black
+
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        leftMargin=18*mm, rightMargin=18*mm,
+        topMargin=20*mm, bottomMargin=20*mm,
+        title=f"RareMatch — {results.get('disease_name', 'Report')}",
+    )
+
+    W = A4[0] - 36*mm   # usable width
+
+    # ── Paragraph styles ─────────────────────────────────────
+    # ParagraphStyle doesn't accept keyword args in constructor —
+    # set attributes directly after creation.
+    def ps(name, fontName="Helvetica", fontSize=10, textColor=None,
+           leading=14, alignment=TA_LEFT, spaceBefore=0, spaceAfter=0):  # type: ignore[assignment]
+        s = ParagraphStyle(name)
+        s.fontName    = fontName
+        s.fontSize    = fontSize
+        s.textColor   = textColor or DARK_TEXT
+        s.leading     = leading
+        s.alignment   = alignment  # type: ignore[assignment]
+        s.spaceBefore = spaceBefore
+        s.spaceAfter  = spaceAfter
+        return s
+
+    S_TITLE   = ps("title",   fontName="Helvetica-Bold", fontSize=22,
+                               textColor=BLUE, leading=26)
+    S_SUB     = ps("sub",     fontSize=11, textColor=MUTED, leading=15)
+    S_H2      = ps("h2",      fontName="Helvetica-Bold", fontSize=13,
+                               textColor=BLUE, leading=17, spaceBefore=10)
+    S_H3      = ps("h3",      fontName="Helvetica-Bold", fontSize=11, leading=15)
+    S_BODY    = ps("body",    fontSize=10, leading=15)
+    S_SMALL   = ps("small",   fontSize=9,  textColor=MUTED, leading=13)
+    S_ITALIC  = ps("italic",  fontName="Helvetica-Oblique", fontSize=10,
+                               textColor=MUTED, leading=14)
+    S_MONO    = ps("mono",    fontName="Courier", fontSize=9, leading=13)
+    S_WARNING = ps("warn",    fontName="Helvetica-Bold", fontSize=10,
+                               textColor=RED_C, leading=14)
+    S_CENTER  = ps("center",  fontSize=9, textColor=MUTED,
+                               leading=12, alignment=TA_CENTER)
+
+    story = []
+
+    def hr(color=LBLUE, thickness: int = 1):
+        story.append(HRFlowable(width="100%", thickness=thickness,
+                                color=color, spaceAfter=4, spaceBefore=4))
+
+    def gap(h=6):
+        story.append(Spacer(1, h))
+
+    # ── Header ───────────────────────────────────────────────
+    now = datetime.datetime.now().strftime("%B %d, %Y · %H:%M")
+    disease = results.get("disease_name", "Unknown")
+
+    header_data = [[
+        Paragraph(f"<b>RareMatch</b>", ps("logo", fontName="Helvetica-Bold",
+                  fontSize=16, textColor=BLUE)),
+        Paragraph(f"Generated: {now}", ps("ts", fontSize=9,
+                  textColor=MUTED, alignment=TA_RIGHT)),
+    ]]
+    t = Table(header_data, colWidths=[W*0.6, W*0.4])
+    t.setStyle(TableStyle([
+        ("VALIGN",    (0,0), (-1,-1), "MIDDLE"),
+        ("LINEBELOW", (0,0), (-1,0),  1, BLUE),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 8),
+    ]))
+    story.append(t)
+    gap(8)
+
+    story.append(Paragraph(f"Drug Repurposing Analysis", S_SUB))
+    story.append(Paragraph(f"{disease.upper()}", S_TITLE))
+    gap(4)
+
+    # Patient profile summary
+    patient_parts = []
+    if query.get("patient_age"):
+        patient_parts.append(f"Age: {query['patient_age']}")
+    if query.get("avoid_liver_toxicity"):
+        patient_parts.append("Avoid liver toxicity")
+    if query.get("avoid_cardiac_risk"):
+        patient_parts.append("Avoid cardiac risk")
+    if query.get("avoid_immunosuppression"):
+        patient_parts.append("Avoid immunosuppression")
+    if query.get("custom_avoid"):
+        patient_parts.append(f"Custom avoid: {', '.join(query['custom_avoid'])}")
+
+    if patient_parts:
+        story.append(Paragraph(
+            f"<b>Patient constraints:</b> {' · '.join(patient_parts)}", S_BODY))
+        gap(4)
+
+    hr(BLUE, 2)
+    gap(8)
+
+    # ── Mechanism Section ─────────────────────────────────────
+    story.append(Paragraph("AI Mechanism Extraction", S_H2))
+    gap(4)
+
+    mech_data = [
+        ["Field", "Value"],
+        ["Mechanism",       results.get("inferred_mechanism", "—")],
+        ["Disrupted Pathway", results.get("disrupted_pathway", "—")],
+        ["Pathway Status",  results.get("pathway_status", "—")],
+        ["Required Action", results.get("required_action", "—")],
+        ["Confidence",      f"{results.get('mechanism_confidence', 0)}%"],
+        ["Data Source",     results.get("abstract_source", "—")],
+    ]
+    mt = Table(mech_data, colWidths=[W*0.32, W*0.68])
+    mt.setStyle(TableStyle([
+        ("BACKGROUND",  (0,0), (-1,0),  BLUE),
+        ("TEXTCOLOR",   (0,0), (-1,0),  WHITE),
+        ("FONTNAME",    (0,0), (-1,0),  "Helvetica-Bold"),
+        ("FONTSIZE",    (0,0), (-1,-1), 9),
+        ("BACKGROUND",  (0,1), (-1,-1), LIGHT_BG),
+        ("BACKGROUND",  (0,2), (-1,2),  WHITE),
+        ("BACKGROUND",  (0,4), (-1,4),  WHITE),
+        ("BACKGROUND",  (0,6), (-1,6),  WHITE),
+        ("GRID",        (0,0), (-1,-1), 0.5, MID_GREY),
+        ("FONTNAME",    (0,1), (0,-1),  "Helvetica-Bold"),
+        ("TEXTCOLOR",   (0,1), (0,-1),  MUTED),
+        ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+        ("PADDING",     (0,0), (-1,-1), 6),
+    ]))
+    story.append(mt)
+    gap(6)
+
+    quote = results.get("evidence_quote", "")
+    if quote:
+        story.append(Paragraph(f'"{_html.escape(quote)}"', S_ITALIC))
+    gap(8)
+
+    # ── Safety Summary ────────────────────────────────────────
+    summary = results.get("safety_summary", {})
+    n_g = summary.get("GREEN", 0)
+    n_y = summary.get("YELLOW", 0)
+    n_r = summary.get("RED", 0)
+    n_t = summary.get("total", 0)
+
+    hr(LBLUE)
+    gap(4)
+    story.append(Paragraph("Safety Summary", S_H2))
+    gap(4)
+
+    sum_data = [[
+        Paragraph(f"<b>{n_t}</b><br/>Total Candidates",
+                  ps("sc", fontName="Helvetica-Bold", fontSize=14,
+                     alignment=TA_CENTER, textColor=DARK_TEXT)),
+        Paragraph(f"<b>{n_g}</b><br/>GREEN",
+                  ps("sg", fontName="Helvetica-Bold", fontSize=14,
+                     alignment=TA_CENTER, textColor=GREEN_C)),
+        Paragraph(f"<b>{n_y}</b><br/>YELLOW",
+                  ps("sy", fontName="Helvetica-Bold", fontSize=14,
+                     alignment=TA_CENTER, textColor=AMBER_C)),
+        Paragraph(f"<b>{n_r}</b><br/>RED",
+                  ps("sr", fontName="Helvetica-Bold", fontSize=14,
+                     alignment=TA_CENTER, textColor=RED_C)),
+    ]]
+    st_tbl = Table(sum_data, colWidths=[W/4]*4)
+    st_tbl.setStyle(TableStyle([
+        ("BACKGROUND",  (0,0), (0,0),  LIGHT_BG),
+        ("BACKGROUND",  (1,0), (1,0),  colors.HexColor("#E8FFF0")),
+        ("BACKGROUND",  (2,0), (2,0),  colors.HexColor("#FFFDE8")),
+        ("BACKGROUND",  (3,0), (3,0),  colors.HexColor("#FFF0F0")),
+        ("BOX",         (0,0), (-1,-1), 1, MID_GREY),
+        ("INNERGRID",   (0,0), (-1,-1), 0.5, MID_GREY),
+        ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+        ("PADDING",     (0,0), (-1,-1), 10),
+    ]))
+    story.append(st_tbl)
+    gap(10)
+
+    # ── Drug Candidates ───────────────────────────────────────
+    hr(LBLUE)
+    gap(4)
+    story.append(Paragraph("Ranked Drug Candidates", S_H2))
+    gap(6)
+
+    tl_colors = {"GREEN": GREEN_C, "YELLOW": AMBER_C, "RED": RED_C}
+    tl_bg     = {
+        "GREEN":  colors.HexColor("#E8FFF0"),
+        "YELLOW": colors.HexColor("#FFFDE8"),
+        "RED":    colors.HexColor("#FFF0F0"),
+    }
+
+    ranked = results.get("ranked_drugs", [])
+    for drug in ranked:
+        tl      = drug.get("traffic_light", "YELLOW")
+        tl_col  = tl_colors.get(tl, AMBER_C)
+        tl_bg_c = tl_bg.get(tl, colors.HexColor("#FFFDE8"))
+        safety  = drug.get("safety", {})
+
+        # Drug header row
+        drug_header = [[
+            Paragraph(
+                f"<b>#{drug.get('rank',0):02d}  {_html.escape(drug.get('drug_name',''))}</b>",
+                ps("dh", fontName="Helvetica-Bold", fontSize=12,
+                   textColor=DARK_TEXT)),
+            Paragraph(
+                f"<b>{tl}</b>",
+                ps("tl", fontName="Helvetica-Bold", fontSize=11,
+                   textColor=tl_col, alignment=TA_CENTER)),
+            Paragraph(
+                f"<b>{drug.get('confidence_score', 0)}%</b><br/>confidence",
+                ps("conf", fontName="Helvetica-Bold", fontSize=11,
+                   alignment=TA_CENTER,
+                   textColor=tl_col)),
+        ]]
+        dh_tbl = Table(drug_header, colWidths=[W*0.55, W*0.2, W*0.25])
+        dh_tbl.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0), tl_bg_c),
+            ("LINEABOVE",    (0,0), (-1,0), 2, tl_col),
+            ("BOX",          (0,0), (-1,-1), 0.5, tl_col),
+            ("VALIGN",       (0,0), (-1,-1), "MIDDLE"),
+            ("PADDING",      (0,0), (-1,-1), 8),
+            ("INNERGRID",    (0,0), (-1,-1), 0.5, MID_GREY),
+        ]))
+        story.append(dh_tbl)
+
+        # Drug detail rows
+        detail_rows = [
+            ["Class / Pathway",
+             f"{_html.escape(drug.get('drug_class',''))}  ·  {_html.escape(drug.get('target_pathway',''))}"],
+            ["Approval",
+             _html.escape(drug.get("approval_status", ""))],
+            ["Mechanism",
+             _html.escape(drug.get("pathway_action", ""))],
+            ["Evidence PMIDs",
+             "  ".join(drug.get("evidence_links", []))],
+        ]
+
+        # Safety flags
+        flags = drug.get("patient_flags", [])
+        if flags:
+            detail_rows.append(["Patient Flags",
+                                 "  |  ".join(_html.escape(str(f)) for f in flags)])
+
+        # Direction warning
+        if drug.get("direction_flag") in ["BLOCKED", "MISMATCH"]:
+            detail_rows.append(["⚠ Direction",
+                                 _html.escape(drug.get("match_reason", "")[:120])])
+
+        # Black box
+        bbw = safety.get("black_box_warning", "")
+        if bbw and bbw not in ["None.", "None", ""]:
+            detail_rows.append(["FDA Black Box", _html.escape(bbw[:200])])
+
+        d_tbl_data = [
+            [Paragraph(row[0], ps("lbl", fontName="Helvetica-Bold",
+                                   fontSize=8, textColor=MUTED)),
+             Paragraph(row[1], ps("val", fontSize=9, textColor=DARK_TEXT,
+                                   leading=13))]
+            for row in detail_rows
+        ]
+        d_tbl = Table(d_tbl_data, colWidths=[W*0.22, W*0.78])
+        d_tbl.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,-1), WHITE),
+            ("BACKGROUND",   (0,0), (0,-1),  LIGHT_BG),
+            ("BOX",          (0,0), (-1,-1), 0.5, MID_GREY),
+            ("INNERGRID",    (0,0), (-1,-1), 0.3, colors.HexColor("#DEE8F0")),
+            ("VALIGN",       (0,0), (-1,-1), "TOP"),
+            ("PADDING",      (0,0), (-1,-1), 5),
+        ]))
+        story.append(d_tbl)
+        gap(8)
+
+    # ── Biological Cousins ────────────────────────────────────
+    cousins = results.get("biological_cousins")
+    if cousins and cousins.get("matched_known_diseases"):
+        hr(LBLUE)
+        gap(4)
+        story.append(Paragraph("Biological Cousins", S_H2))
+        gap(4)
+        story.append(Paragraph(
+            f"<b>Top match:</b> {_html.escape(str(cousins.get('top_match', 'None')))}",
+            S_BODY))
+        related = cousins.get("matched_known_diseases", [])
+        if isinstance(related, list) and related:
+            items = related if isinstance(related[0], str) else \
+                    [d.get("disease_name","") for d in related]
+            story.append(Paragraph(
+                f"<b>Related diseases:</b> {', '.join(_html.escape(i) for i in items if i)}",
+                S_BODY))
+        gap(8)
+
+    # ── Disclaimer ────────────────────────────────────────────
+    hr(MID_GREY, 1)
+    gap(6)
+    disclaimer = (
+        "<b>DISCLAIMER:</b> This report is generated by RareMatch, an AI-assisted "
+        "research tool for rare disease drug repurposing. It is intended solely for "
+        "research and educational purposes. All drug candidates require physician "
+        "review, clinical judgement, and appropriate regulatory approvals before "
+        "clinical use. RareMatch does not provide medical advice."
+    )
+    story.append(Paragraph(disclaimer, S_SMALL))
+    gap(4)
+    story.append(Paragraph(
+        "RareMatch · AI reads · Python decides · Safety gates everything",
+        S_CENTER))
+
+    doc.build(story)
+    return buf.getvalue()
+
+
 # ── Session State Init ─────────────────────────────────────────
 if "results"    not in st.session_state: st.session_state["results"]    = None
 if "deep_drug"  not in st.session_state: st.session_state["deep_drug"]  = None
 if "api_error"  not in st.session_state: st.session_state["api_error"]  = None
 if "last_query" not in st.session_state: st.session_state["last_query"] = ""
+if "last_query_payload" not in st.session_state: st.session_state["last_query_payload"] = {}
 
 
 # ── Header ─────────────────────────────────────────────────────
@@ -556,7 +897,7 @@ if st.session_state["deep_drug"]:
                 {"".join(f'<span class="rm-pmid">{pmid}</span>' for pmid in drug["evidence_links"])}
             </div>
             <div style="margin-top:12px; font-size:12px; color:#6a8aaa; line-height:1.7; font-style:italic;">
-                {drug["evidence_summary"]}
+                {_html.escape(str(drug["evidence_summary"]))}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -641,7 +982,7 @@ if st.session_state["deep_drug"]:
         # Patient flags
         if drug.get("patient_flags"):
             flags_html = "".join(
-                f'<div class="rm-flag">{flag}</div>'
+                f'<div class="rm-flag">{_html.escape(str(flag))}</div>'
                 for flag in drug["patient_flags"]
             )
             st.markdown(f"""
@@ -712,15 +1053,18 @@ if search_clicked and str(disease_input or "").strip():
     st.session_state["api_error"] = None
     st.session_state["last_query"] = str(disease_input or "").strip()
 
-    with st.spinner(f"Analyzing {str(disease_input or '')}..."):
-        payload = {
-            "disease_name":           str(disease_input or "").strip(),
-            "patient_age":            int(patient_age) if patient_age else None,
-            "avoid_liver_toxicity":   avoid_liver,
-            "avoid_cardiac_risk":     avoid_cardiac,
-            "avoid_immunosuppression": avoid_immuno,
-            "custom_avoid":           custom_avoid,
-        }
+    disease_name_clean = str(disease_input or "").strip()
+    payload = {
+        "disease_name":            disease_name_clean,
+        "patient_age":             int(patient_age) if patient_age else None,
+        "avoid_liver_toxicity":    avoid_liver,
+        "avoid_cardiac_risk":      avoid_cardiac,
+        "avoid_immunosuppression": avoid_immuno,
+        "custom_avoid":            custom_avoid,
+    }
+    st.session_state["last_query_payload"] = payload
+
+    with st.spinner(f"Analyzing {disease_name_clean}..."):
         data = call_api("search", method="POST", payload=payload)
 
     if data:
@@ -819,8 +1163,65 @@ if results:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Drug Cards ─────────────────────────────────────────────
+    # ── Safety Trap Banner ─────────────────────────────────────
     ranked_drugs = results.get("ranked_drugs", [])
+    trapped_drugs = [
+        d for d in ranked_drugs
+        if d.get("confidence_score") == 0 or d.get("direction_flag") == "BLOCKED"
+    ]
+    if trapped_drugs:
+        trap_items = ""
+        for d in trapped_drugs:
+            dname   = _html.escape(d.get("drug_name", ""))
+            reason  = _html.escape(d.get("match_reason", "")[:200])
+            trap_items += (
+                '<div style="display:flex;align-items:flex-start;gap:10px;'
+                'margin-top:10px;padding-top:10px;'
+                'border-top:1px solid rgba(244,67,54,0.2);">'
+                '<span style="font-size:18px;">&#9940;</span>'
+                '<div>'
+                f'<div style="font-family:monospace;font-size:12px;font-weight:700;'
+                f'color:#FF5252;letter-spacing:0.5px;">{dname} — CONTRAINDICATED</div>'
+                f'<div style="font-size:11px;color:#FF8A80;margin-top:4px;line-height:1.6;">'
+                f'{reason}</div>'
+                '<div style="font-size:10px;color:#B71C1C;margin-top:6px;font-family:monospace;">'
+                'This drug is included intentionally as a safety reference. '
+                'A physician must NEVER prescribe a BLOCKED drug for this mechanism.'
+                '</div></div></div>'
+            )
+        st.html(
+            '<div style="background:rgba(183,28,28,0.08);border:2px solid #F44336;'
+            'border-radius:8px;padding:16px 20px;margin:12px 0;">'
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">'
+            '<span style="font-size:22px;">&#128680;</span>'
+            '<div>'
+            '<div style="font-family:monospace;font-size:13px;font-weight:700;'
+            'color:#F44336;letter-spacing:1px;">SAFETY TRAP TRIGGERED</div>'
+            f'<div style="font-size:11px;color:#FF8A80;margin-top:2px;">'
+            f'{len(trapped_drugs)} drug(s) detected that are contraindicated '
+            f'for this disease mechanism. They appear RED below.</div>'
+            '</div></div>'
+            + trap_items +
+            '</div>'
+        )
+
+    # ── PDF Download Button ────────────────────────────────────
+    pdf_col, spacer_col = st.columns([2, 5])
+    with pdf_col:
+        try:
+            query_payload = st.session_state.get("last_query_payload", {})
+            pdf_bytes = generate_pdf_report(results, query_payload)
+            fname = f"RareMatch_{results.get('disease_name','report').replace(' ','_')}.pdf"
+            st.download_button(
+                label="📄  Download PDF Report",
+                data=pdf_bytes,
+                file_name=fname,
+                mime="application/pdf",
+                use_container_width=True,
+                help="Download a full clinical-style PDF report of these results",
+            )
+        except Exception as e:
+            st.caption(f"PDF unavailable: {e}")
 
     for drug in ranked_drugs:
         tl     = drug["traffic_light"]
@@ -834,49 +1235,60 @@ if results:
             <div style="background:rgba(255,82,82,0.08); border:1px solid rgba(255,82,82,0.2);
                  border-radius:3px; padding:6px 12px; font-size:11px; color:#ff5252;
                  font-family:IBM Plex Mono,monospace; margin-top:8px;">
-                ⚠ DIRECTION {drug["direction_flag"]} — {drug["match_reason"][:120]}...
+                ⚠ DIRECTION {drug["direction_flag"]} — {drug["match_reason"][:120].replace(chr(0x2014), "&mdash;").replace(chr(0x2013), "&ndash;")}...
             </div>"""
 
-        # Patient flags
-        flags_html = ""
-        if drug.get("patient_flags"):
-            flags_html = "".join(
-                f'<div class="rm-flag">{flag}</div>'
-                for flag in drug["patient_flags"][:2]  # Show max 2 in card view
-            )
+
 
         col_card, col_btn = st.columns([10, 1])
 
         with col_card:
-            st.markdown(f"""
+            # Build pathway_action safely - no escaping needed, st.html renders direct
+            pathway_txt = drug["pathway_action"][:180].replace('\u2014', '&mdash;').replace('\u2013', '&ndash;') + ('...' if len(drug["pathway_action"]) > 180 else '')
+            approval_txt = drug["approval_status"][:60] + ('...' if len(drug["approval_status"]) > 60 else '')
+            pmids_txt = "  ".join(drug.get("evidence_links", [])[:3])
+            rank_txt  = f'#{drug["rank"]:02d}'
+            tl_html   = traffic_html(tl)
+
+            # Patient flags — inline styles (st.html sandboxes CSS classes)
+            flags_html = ""
+            if drug.get("patient_flags"):
+                flags_html = "".join(
+                    f'<div style="background:rgba(255,82,82,0.08);border:1px solid rgba(255,82,82,0.2);'
+                    f'border-radius:3px;padding:6px 12px;font-size:11px;color:#ff5252;'
+                    f'font-family:IBM Plex Mono,monospace;margin-top:8px;">{str(flag)}</div>'
+                    for flag in drug["patient_flags"][:2]
+                )
+
+            st.html(f"""
             <div class="rm-card {tl_cls}">
                 <div class="rm-card-header">
                     <div style="display:flex; align-items:flex-start;">
-                        <span class="rm-card-rank">#{drug["rank"]:02d}</span>
+                        <span class="rm-card-rank">{rank_txt}</span>
                         <div>
                             <div class="rm-card-name">{drug["drug_name"]}</div>
                             <div class="rm-card-class">
-                                {drug["drug_class"]} &nbsp;·&nbsp; {drug["target_pathway"]}
-                                &nbsp;·&nbsp; {drug["approval_status"][:60]}{'...' if len(drug["approval_status"]) > 60 else ''}
+                                {drug["drug_class"]} &nbsp;&middot;&nbsp; {drug["target_pathway"]}
+                                &nbsp;&middot;&nbsp; {approval_txt}
                             </div>
                         </div>
                     </div>
                     <div style="text-align:right; margin-left:16px;">
-                        {traffic_html(tl)}
+                        {tl_html}
                         <div class="rm-confidence" style="color:{c_color};">{drug["confidence_score"]}%</div>
                         <div class="rm-confidence-label">confidence</div>
                     </div>
                 </div>
                 <div style="font-size:12px; color:#6a8aaa; line-height:1.6; margin-bottom:8px;">
-                    {drug["pathway_action"][:180]}{'...' if len(drug["pathway_action"]) > 180 else ''}
+                    {pathway_txt}
                 </div>
                 <div style="font-size:11px; color:#2a3f5f; font-family:IBM Plex Mono,monospace;">
-                    {"  ".join(drug.get("evidence_links", [])[:3])}
+                    {pmids_txt}
                 </div>
                 {direction_warning}
                 {flags_html}
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
         with col_btn:
             st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
